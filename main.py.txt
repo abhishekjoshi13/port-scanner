@@ -1,0 +1,106 @@
+import socket
+import threading
+import json
+from datetime import datetime
+from colorama import Fore, Style, init
+from time import sleep
+init()
+target_host = "127.0.0.1"
+port_start = 20
+port_end = 100
+show_closed_ports = True
+max_concurrent_threads = 100
+max_retries = 2
+found_open_ports = []
+list_lock = threading.Lock()
+ports_scanned = 0
+COMMON_PORTS = {
+    21: "FTP",
+    22: "SSH",
+    23: "Telnet",
+    25: "SMTP",
+    53: "DNS",
+    80: "HTTP",
+    110: "POP3",
+    143: "IMAP",
+    443: "HTTPS",
+    3306: "MySQL",
+    8080: "HTTP Proxy"
+}
+def scan_single_port(host, port, verbose=False, retries=max_retries):
+    global ports_scanned
+    for attempt in range(retries + 1):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)  
+            connection_result = sock.connect_ex((host, port))
+            if connection_result == 0:
+                banner = ""
+                try:
+                    sock.send(b"HEAD / HTTP/1.0\r\n\r\n")
+                    banner = sock.recv(1024).decode("utf-8").strip()
+                except Exception:
+                    pass
+                service_name = COMMON_PORTS.get(port, "Unknown service")
+                with list_lock:
+                    found_open_ports.append({
+                        "port": port,
+                        "service": service_name,
+                        "banner": banner if banner else None
+                    })
+
+                print(f"{Fore.GREEN}[+] Port {port} ({service_name}) is OPEN. Banner: {banner or 'N/A'}{Style.RESET_ALL}")
+                break  
+            else:
+                if verbose:
+                    print(f"{Fore.RED}[-] Port {port} is closed.{Style.RESET_ALL}")
+                break  
+            sock.close()
+        except socket.timeout:
+            if attempt < retries:
+                if verbose:
+                    print(f"{Fore.YELLOW}[!] Timeout on port {port}, retrying ({attempt + 1}/{retries})...{Style.RESET_ALL}")
+                sleep(0.5)  
+            else:
+                if verbose:
+                    print(f"{Fore.YELLOW}[!] Timeout on port {port}. No more retries.{Style.RESET_ALL}")
+        except Exception as e:
+            if verbose:
+                print(f"{Fore.YELLOW}[!] Error scanning port {port}: {e}{Style.RESET_ALL}")
+            break
+    with list_lock:
+        ports_scanned += 1
+        show_progress(ports_scanned, port_end - port_start + 1)
+def show_progress(current, total):
+    percent_complete = (current / total) * 100
+    bar_length = 30
+    filled_length = int(bar_length * current // total)
+    bar = "=" * filled_length + "-" * (bar_length - filled_length)
+    print(f"\rProgress: [{bar}] {current}/{total} ports scanned ({percent_complete:.1f}%)", end="")
+def start_port_scan():
+    print(f"\nStarting port scan on target: {target_host}")
+    print(f"Scan started at: {datetime.now()}\n")
+    threads = []
+    semaphore = threading.BoundedSemaphore(max_concurrent_threads)
+    for port in range(port_start, port_end + 1):
+        semaphore.acquire()
+        thread = threading.Thread(target=lambda p=port: (scan_single_port(target_host, p, show_closed_ports), semaphore.release()))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+    print("\n\nScan complete!")
+    print(f"Total open ports found: {len(found_open_ports)}")
+    print(f"Time taken: {(datetime.now() - scan_start_time).total_seconds():.2f} seconds")
+
+    with open("results.txt", "w") as txt_file:
+        for port_info in found_open_ports:
+            txt_file.write(f"Port {port_info['port']} ({port_info['service']}): {port_info['banner'] or 'Open'}\n")
+    with open("results.json", "w") as json_file:
+        json.dump(found_open_ports, json_file, indent=4)
+
+    print("Results to results.txt and results.json")
+
+if __name__ == "__main__":
+    scan_start_time = datetime.now()
+    start_port_scan()
