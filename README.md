@@ -1,7 +1,7 @@
 # port-scanner
 ## Python Port Scanner
 
-A fast, multithreaded TCP port scanner built in Python. This tool allows you to scan a range of ports on a target host, identify open ports,  and save results in both text and JSON formats.
+A fast, multithreaded TCP port scanner built in Python. This tool allows you to scan a range of ports on a target host, and identify open ports.
 
 ## Basic Features
 
@@ -9,15 +9,13 @@ A fast, multithreaded TCP port scanner built in Python. This tool allows you to 
 -Retry logic for handling timeouts
 -Identifies common services on known ports
 - Real-time progress tracking in terminal
-- Saves output to `results.txt` and `results.json`
-- Colored terminal output using `colorama`
 
 ## Project Structure
 
--main.py, which is the Main port scanner script
+-main.py, which is the main port scanner script
 -results.txt, which is Output file with open ports 
 - results.json, which is Structured JSON results 
--README.md, which is the main Project documentation
+-README.md, which is the main project documentation
  
 ## Requirements
 
@@ -43,5 +41,5 @@ python main.py
 ## Sample Output
 -Port 22 (SSH): SSH-2.0-Go
 ##Acknowledgements
--It is inspired by basic network tools and learning in Python.
+-It is built on the basis of basic network tools and learning in Python.
 
